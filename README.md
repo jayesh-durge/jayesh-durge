@@ -1,6 +1,10 @@
 <!-- 🟡 PAC-MAN CONTRIBUTION GRAPH -->
 <p align="center">
-  <img src="https://raw.githubusercontent.com/jayesh-durge/jayesh-durge/output/pacman-contribution-graph.svg" />
+  <!-- Light Mode -->
+  <img src="https://raw.githubusercontent.com/jayesh-durge/jayesh-durge/output/pacman-contribution-graph.svg#gh-light-mode-only" />
+
+  <!-- Dark Mode -->
+  <img src="https://raw.githubusercontent.com/jayesh-durge/jayesh-durge/output/pacman-contribution-graph-dark.svg#gh-dark-mode-only" />
 </p>
 
 <h1 align="center">Hi 👋, I'm Jayesh Durge</h1>
