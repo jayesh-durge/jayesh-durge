@@ -1,9 +1,6 @@
 name: Contribution Graph (Gold Theme)
 
 on:
-  push:
-    branches:
-      - '**'
   schedule:
     - cron: '0 0 * * *' # Runs daily at midnight
   workflow_dispatch:
@@ -11,15 +8,108 @@ on:
 jobs:
   update-graph:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'chore: update contribution graph')"
     permissions:
       contents: write
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch Contribution Graph
-        run: curl -o contribution-graph.svg "https://ghchart.rshah.org/F7D34D/jayesh-durge"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate Themed Contribution Graph
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_USERNAME: jayesh-durge
+        run: |
+          cat > generate-graph.js << 'EOF'
+          const https = require('https');
+          const fs = require('fs');
+
+          const token = process.env.GH_TOKEN;
+          const username = process.env.GH_USERNAME;
+
+          const query = `
+            query($login: String!) {
+              user(login: $login) {
+                contributionsCollection {
+                  contributionCalendar {
+                    weeks {
+                      contributionDays {
+                        contributionCount
+                        date
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const payload = JSON.stringify({ query, variables: { login: username } });
+
+          const options = {
+            hostname: 'api.github.com',
+            path: '/graphql',
+            method: 'POST',
+            headers: {
+              'Authorization': `bearer ${token}`,
+              'Content-Type': 'application/json',
+              'User-Agent': 'contribution-graph-generator'
+            }
+          };
+
+          const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => (body += chunk));
+            res.on('end', () => {
+              const json = JSON.parse(body);
+              const weeks = json.data.user.contributionsCollection.contributionCalendar.weeks;
+
+              // Level 0 (no activity) -> Level 4 (peak activity), navy to gold
+              const colors = ['#0D1117', '#3A2E12', '#7A5A18', '#C9A227', '#F7D34D'];
+
+              const cell = 12, gap = 3;
+              const width = weeks.length * (cell + gap) + gap;
+              const height = 7 * (cell + gap) + gap;
+
+              const counts = [];
+              weeks.forEach((w) => w.contributionDays.forEach((d) => counts.push(d.contributionCount)));
+              const max = Math.max(...counts, 1);
+
+              function levelFor(count) {
+                if (count === 0) return 0;
+                const ratio = count / max;
+                if (ratio > 0.75) return 4;
+                if (ratio > 0.5) return 3;
+                if (ratio > 0.25) return 2;
+                return 1;
+              }
+
+              let rects = '';
+              weeks.forEach((week, x) => {
+                week.contributionDays.forEach((day, y) => {
+                  const color = colors[levelFor(day.contributionCount)];
+                  const rx = gap + x * (cell + gap);
+                  const ry = gap + y * (cell + gap);
+                  rects += `<rect x="${rx}" y="${ry}" width="${cell}" height="${cell}" rx="2" fill="${color}"><title>${day.date}: ${day.contributionCount} contributions</title></rect>`;
+                });
+              });
+
+              const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+                <rect width="100%" height="100%" fill="transparent"/>
+                ${rects}
+              </svg>`;
+
+              fs.writeFileSync('contribution-graph.svg', svg);
+            });
+          });
+
+          req.write(payload);
+          req.end();
+          EOF
+          node generate-graph.js
+
       - name: Commit Graph
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
