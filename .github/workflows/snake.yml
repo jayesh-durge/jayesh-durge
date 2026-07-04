@@ -1,39 +1,27 @@
-name: GitHub Snake Game
+name: Contribution Graph (Gold Theme)
 
 on:
-  schedule:
-    - cron: "0 0 * * *"
-  workflow_dispatch:
   push:
     branches:
-      - main
+      - '**'
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight
+  workflow_dispatch:
 
 jobs:
-  generate:
+  update-graph:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'chore: update contribution graph')"
     permissions:
       contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Generate GitHub Contributions Snake Animations
-        uses: Platane/snk@v3
+      - uses: actions/checkout@v4
+      - name: Fetch Contribution Graph
+        run: curl -o contribution-graph.svg "https://ghchart.rshah.org/F7D34D/jayesh-durge"
+      - name: Commit Graph
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          github_user_name: ${{ github.repository_owner }}
-          outputs: |
-            dist/github-snake.svg
-            dist/github-snake-dark.svg?palette=github-dark
-            dist/ocean.gif?color_snake=orange&color_dots=#bfd6f6,#8dbdff,#64a1f4,#4b91f1,#3c7dd9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Deploy to Output Branch
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: output
-          commit_message: "Update snake animation [skip ci]"
+          commit_message: "chore: update contribution graph"
+          file_pattern: contribution-graph.svg
