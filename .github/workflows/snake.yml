@@ -2,7 +2,7 @@ name: Contribution Graph (Gold Theme)
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Runs daily at midnight
+    - cron: '0 0 1 * *' # Runs on day 1 of month
   workflow_dispatch:
 
 jobs:
